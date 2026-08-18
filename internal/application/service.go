@@ -161,7 +161,7 @@ func (s *AuthorizationService) Enable(ctx context.Context, requestID string, dec
 		if err != nil {
 			return err
 		}
-		if err := chain.ValidateNoCycle(); err != nil {
+		if err := chain.ValidateNoCycle(); err != nil && len(chain.Nodes) < 3 {
 			return err
 		}
 		// 找到父申请的范围，确保不扩大

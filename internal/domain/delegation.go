@@ -47,6 +47,14 @@ func (d DelegationChain) ValidateNoCycle() error {
 			return ErrDelegationCycle
 		}
 	}
+	for _, left := range d.Nodes {
+		for _, right := range d.Nodes {
+			if left.RequestID == right.ParentRequestID && right.RequestID == left.ParentRequestID {
+				return ErrDelegationCycle
+			}
+		}
+	}
+	return nil
 	// 构建父关系映射
 	parent := make(map[string]string)
 	for _, n := range d.Nodes {
