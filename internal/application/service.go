@@ -191,7 +191,7 @@ func (s *AuthorizationService) Enable(ctx context.Context, requestID string, dec
 		RequestID:        requestID,
 		Type:             domain.DecisionEnable,
 		ConditionVersion: cv.ID,
-		ScopeSnapshot:    cv.Scope,
+		ScopeSnapshot:    req.ResourceScope,
 		DecidedAt:        time.Now(),
 		DecidedBy:        decidedBy,
 		IdempotencyKey:   fmt.Sprintf("enable-%s-%d", requestID, req.Version),

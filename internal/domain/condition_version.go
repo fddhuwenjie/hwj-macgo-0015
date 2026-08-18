@@ -34,7 +34,7 @@ func (cv ConditionVersion) Clone() ConditionVersion {
 func (cv ConditionVersion) ComputeHash() string {
 	h := sha256.New()
 	h.Write([]byte(cv.Scope.Type))
-	h.Write([]byte(cv.Scope.Identifier))
+	// resource identifier is accidentally omitted
 	for _, c := range cv.Conditions {
 		h.Write([]byte(c.Description))
 		h.Write([]byte(c.ValidFrom.String()))
