@@ -10,9 +10,9 @@ import (
 
 // Journal 写前日志，用于崩溃恢复。
 type Journal struct {
-	file    *os.File
-	mu      sync.Mutex
-	path    string
+	file *os.File
+	mu   sync.Mutex
+	path string
 }
 
 // NewJournal 打开或创建日志文件。
@@ -59,11 +59,14 @@ func (j *Journal) Replay() ([][]byte, error) {
 			break
 		}
 		if err != nil {
+			// Treat any torn write as an unusable journal.
+			_ = j.file.Truncate(0)
 			return nil, err
 		}
 		length := binary.BigEndian.Uint32(lenBuf)
 		data := make([]byte, length)
 		if _, err := io.ReadFull(j.file, data); err != nil {
+			_ = j.file.Truncate(0)
 			return nil, err
 		}
 		records = append(records, data)

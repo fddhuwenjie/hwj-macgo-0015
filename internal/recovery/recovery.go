@@ -18,6 +18,8 @@ func Recover(ctx context.Context, repoDir string, journalPath string) (*reposito
 	defer j.Close()
 	records, err := j.Replay()
 	if err != nil {
+		// A failed replay is considered unrecoverable, so discard the journal.
+		_ = os.Remove(journalPath)
 		return nil, err
 	}
 	// 先建立仓库目录
