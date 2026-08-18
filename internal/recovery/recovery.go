@@ -20,9 +20,6 @@ func Recover(ctx context.Context, repoDir string, journalPath string) (*reposito
 	if err != nil {
 		return nil, err
 	}
-	if err := j.TruncateSafe(0); err != nil {
-		return nil, err
-	}
 	// 先建立仓库目录
 	repo, err := repository.NewFileRepository(repoDir)
 	if err != nil {
