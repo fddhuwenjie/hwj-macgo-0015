@@ -32,7 +32,6 @@ func TestBug07TruncatedTailKeepsPrefixAndAllowsRetry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Simulate a process dying after writing only part of the final payload.
 	if err := os.Truncate(journalPath, info.Size()-3); err != nil {
 		t.Fatal(err)
 	}

@@ -52,6 +52,7 @@ func (j *Journal) Replay() ([][]byte, error) {
 		return nil, err
 	}
 	var records [][]byte
+	var validOffset int64
 	lenBuf := make([]byte, 4)
 	for {
 		n, err := io.ReadFull(j.file, lenBuf)
@@ -59,17 +60,27 @@ func (j *Journal) Replay() ([][]byte, error) {
 			break
 		}
 		if err != nil {
-			// Treat any torn write as an unusable journal.
-			_ = j.file.Truncate(0)
-			return nil, err
+			// A torn length header can only be an incomplete final append. Keep
+			// the valid prefix and make the journal appendable again.
+			if truncateErr := j.file.Truncate(validOffset); truncateErr != nil {
+				return nil, fmt.Errorf("truncate torn journal header: %w", truncateErr)
+			}
+			_, _ = j.file.Seek(0, io.SeekEnd)
+			return records, nil
 		}
 		length := binary.BigEndian.Uint32(lenBuf)
 		data := make([]byte, length)
 		if _, err := io.ReadFull(j.file, data); err != nil {
-			_ = j.file.Truncate(0)
-			return nil, err
+			// A short payload is a torn final record. It must not discard the
+			// records that were durably written before it.
+			if truncateErr := j.file.Truncate(validOffset); truncateErr != nil {
+				return nil, fmt.Errorf("truncate torn journal payload: %w", truncateErr)
+			}
+			_, _ = j.file.Seek(0, io.SeekEnd)
+			return records, nil
 		}
 		records = append(records, data)
+		validOffset += int64(4 + length)
 	}
 	return records, nil
 }

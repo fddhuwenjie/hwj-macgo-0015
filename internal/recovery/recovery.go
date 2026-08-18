@@ -18,8 +18,9 @@ func Recover(ctx context.Context, repoDir string, journalPath string) (*reposito
 	defer j.Close()
 	records, err := j.Replay()
 	if err != nil {
-		// A failed replay is considered unrecoverable, so discard the journal.
-		_ = os.Remove(journalPath)
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	// 先建立仓库目录
@@ -29,6 +30,9 @@ func Recover(ctx context.Context, repoDir string, journalPath string) (*reposito
 	}
 	// 重放记录（简化：记录为命令，需实现命令解析；此处占位）
 	_ = records
+	if err := CleanupTmpFiles(repoDir); err != nil {
+		return nil, err
+	}
 	// 检查完整性
 	if err := repo.CheckIntegrity(ctx); err != nil {
 		return nil, err
