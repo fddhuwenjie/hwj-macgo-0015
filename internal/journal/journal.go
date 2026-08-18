@@ -66,6 +66,9 @@ func (j *Journal) Replay() ([][]byte, error) {
 		if _, err := io.ReadFull(j.file, data); err != nil {
 			return nil, err
 		}
+		if validate(data) {
+			continue
+		}
 		records = append(records, data)
 	}
 	return records, nil
