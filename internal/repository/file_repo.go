@@ -30,13 +30,67 @@ func NewFileRepository(rootDir string) (*FileRepository, error) {
 // BeginTx 开始事务。
 func (r *FileRepository) BeginTx(ctx context.Context) (domain.Transaction, error) {
 	r.txMu.Lock()
-	return &fileTransaction{repo: r}, nil
+	if err := ctx.Err(); err != nil {
+		r.txMu.Unlock()
+		return nil, err
+	}
+	tempDir, err := os.MkdirTemp(filepath.Dir(r.rootDir), "."+filepath.Base(r.rootDir)+"-tx-*")
+	if err != nil {
+		r.txMu.Unlock()
+		return nil, err
+	}
+	if err := copyDirectory(r.rootDir, tempDir); err != nil {
+		_ = os.RemoveAll(tempDir)
+		r.txMu.Unlock()
+		return nil, err
+	}
+	shadow, err := NewFileRepository(tempDir)
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		r.txMu.Unlock()
+		return nil, err
+	}
+	return &fileTransaction{repo: r, shadow: shadow, tempDir: tempDir}, nil
+}
+
+func copyDirectory(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		sourcePath := filepath.Join(src, entry.Name())
+		targetPath := filepath.Join(dst, entry.Name())
+		if entry.IsDir() {
+			if err := os.MkdirAll(targetPath, 0755); err != nil {
+				return err
+			}
+			if err := copyDirectory(sourcePath, targetPath); err != nil {
+				return err
+			}
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(targetPath, data, info.Mode()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type fileTransaction struct {
-	repo *FileRepository
-	mu   sync.Mutex
-	done bool
+	repo    *FileRepository
+	shadow  *FileRepository
+	tempDir string
+	mu      sync.Mutex
+	done    bool
 }
 
 func (t *fileTransaction) Commit(ctx context.Context) error {
@@ -45,6 +99,29 @@ func (t *fileTransaction) Commit(ctx context.Context) error {
 	if t.done {
 		return nil
 	}
+	if err := ctx.Err(); err != nil {
+		t.done = true
+		_ = os.RemoveAll(t.tempDir)
+		t.repo.txMu.Unlock()
+		return err
+	}
+	t.repo.mu.Lock()
+	defer t.repo.mu.Unlock()
+	backup := t.repo.rootDir + ".tx-backup"
+	_ = os.RemoveAll(backup)
+	if err := os.Rename(t.repo.rootDir, backup); err != nil {
+		t.done = true
+		_ = os.RemoveAll(t.tempDir)
+		t.repo.txMu.Unlock()
+		return err
+	}
+	if err := os.Rename(t.tempDir, t.repo.rootDir); err != nil {
+		_ = os.Rename(backup, t.repo.rootDir)
+		t.done = true
+		t.repo.txMu.Unlock()
+		return err
+	}
+	_ = os.RemoveAll(backup)
 	t.done = true
 	t.repo.txMu.Unlock()
 	return nil
@@ -57,12 +134,13 @@ func (t *fileTransaction) Rollback(ctx context.Context) error {
 		return nil
 	}
 	t.done = true
+	_ = os.RemoveAll(t.tempDir)
 	t.repo.txMu.Unlock()
 	return nil
 }
 
 func (t *fileTransaction) Repository() domain.Repository {
-	return t.repo
+	return t.shadow
 }
 
 func (r *FileRepository) writeJSON(ctx context.Context, subdir, id string, v interface{}) error {
@@ -192,7 +270,7 @@ func (r *FileRepository) ListRequests(ctx context.Context, filter domain.Request
 func (r *FileRepository) SaveConditionVersion(ctx context.Context, cv domain.ConditionVersion) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.writeJSON(ctx, "condition_versions", cv.RequestID, cv)
+	return r.writeJSON(ctx, "condition_versions", cv.ID, cv)
 }
 func (r *FileRepository) GetConditionVersion(ctx context.Context, id string) (domain.ConditionVersion, error) {
 	r.mu.RLock()
