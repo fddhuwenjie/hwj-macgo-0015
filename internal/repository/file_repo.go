@@ -192,7 +192,7 @@ func (r *FileRepository) ListRequests(ctx context.Context, filter domain.Request
 func (r *FileRepository) SaveConditionVersion(ctx context.Context, cv domain.ConditionVersion) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.writeJSON(ctx, "condition_versions", cv.ID, cv)
+	return r.writeJSON(ctx, "condition_versions", cv.RequestID, cv)
 }
 func (r *FileRepository) GetConditionVersion(ctx context.Context, id string) (domain.ConditionVersion, error) {
 	r.mu.RLock()

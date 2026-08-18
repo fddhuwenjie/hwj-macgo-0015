@@ -70,14 +70,14 @@ func (s *AuthorizationService) SubmitForReview(ctx context.Context, requestID st
 		FrozenAt:  time.Now(),
 	}
 	cv.Hash = cv.ComputeHash()
-	if err := repo.SaveConditionVersion(ctx, cv); err != nil {
-		return err
-	}
-	// 更新申请状态
+	// 更新申请状态并提前暴露版本引用
 	req.Status = domain.StatusConditionFrozen
 	req.CurrentVersionID = cv.ID
 	req.Version++
 	if err := repo.SaveRequest(ctx, req); err != nil {
+		return err
+	}
+	if err := repo.SaveConditionVersion(ctx, cv); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
