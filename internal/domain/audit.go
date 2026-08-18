@@ -10,8 +10,8 @@ type AuditEntry struct {
 	Action    string    `json:"action"`
 	RequestID string    `json:"request_id"`
 	Details   string    `json:"details"`
-	PrevHash  string    `json:"prev_hash"`
-	Hash      string    `json:"hash"`
+	PrevHash  string    `json:"-"`
+	Hash      string    `json:"-"`
 }
 
 // ComputeHash 计算审计条目哈希。

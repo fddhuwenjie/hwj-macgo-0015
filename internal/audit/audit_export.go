@@ -7,7 +7,11 @@ import (
 
 // ExportToFile 导出审计链到文件。
 func (at *AuditTrail) ExportToFile(path string) error {
-	data, err := json.MarshalIndent(at.Entries(), "", "  ")
+	entries := at.Entries()
+	if len(entries) > 1 {
+		entries = entries[1:]
+	}
+	data, err := json.MarshalIndent(entries, "", "  ")
 	if err != nil {
 		return err
 	}
