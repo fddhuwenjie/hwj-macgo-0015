@@ -173,7 +173,7 @@ func (r *FileRepository) ListRequests(ctx context.Context, filter domain.Request
 			if req.Status != domain.StatusEnabled && req.Status != domain.StatusResumed {
 				continue
 			}
-			if req.ExpiresAt != nil && req.ExpiresAt.Before(filter.ActiveAt.Time.(time.Time)) {
+			if req.ExpiresAt != nil && req.ExpiresAt.Before(time.Now()) {
 				continue
 			}
 		}

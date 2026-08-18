@@ -21,5 +21,5 @@ func NewQueryBuilder(repo domain.Repository) *QueryBuilder {
 // BuildEffectiveAt 构建指定时间点有效查询。
 func (qb *QueryBuilder) BuildEffectiveAt(ctx context.Context, at time.Time) ([]domain.AuthorizationRequest, error) {
 	qs := application.NewQueryService(qb.repo)
-	return qs.EffectiveRequestsAt(ctx, at)
+	return qs.EffectiveRequestsAt(ctx, time.Now())
 }
