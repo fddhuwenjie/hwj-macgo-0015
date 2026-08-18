@@ -97,7 +97,7 @@ func (s *AuthorizationService) Review(ctx context.Context, requestID string, rev
 	if err != nil {
 		return err
 	}
-	if req.Status != domain.StatusConditionFrozen && req.Status != domain.StatusUnderReview {
+	if req.Status != domain.StatusConditionFrozen && req.Status != domain.StatusUnderReview && req.Status != domain.StatusSuspended {
 		return domain.ErrInvalidStateTransition
 	}
 	round := domain.ReviewRound{
@@ -118,7 +118,9 @@ func (s *AuthorizationService) Review(ctx context.Context, requestID string, rev
 		round.DecisionVersion = cv.ID
 		// 移动到 UnderReview (继续多轮) 或直接启用由后续决策控制
 		// 这里简单：一轮通过则进入 UnderReview 状态等待最终启用决策
-		req.Status = domain.StatusUnderReview
+		if err := req.Transition(domain.StatusUnderReview); err != nil {
+			return err
+		}
 	} else {
 		// 驳回回到 Draft 或保持
 		req.Status = domain.StatusDraft

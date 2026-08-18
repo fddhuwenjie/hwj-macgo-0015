@@ -8,7 +8,7 @@ var ValidTransitions = map[AuthorizationStatus][]AuthorizationStatus{
 	StatusConditionFrozen: {StatusUnderReview, StatusWithdrawn},
 	StatusUnderReview:     {StatusEnabled, StatusWithdrawn},
 	StatusEnabled:         {StatusSuspended, StatusExpired, StatusWithdrawn},
-	StatusSuspended:       {StatusResumed, StatusExpired},
+	StatusSuspended:       {StatusResumed, StatusExpired, StatusUnderReview},
 	StatusResumed:         {StatusSuspended, StatusExpired},
 	StatusExpired:         {},
 	StatusWithdrawn:       {},
