@@ -9,7 +9,7 @@ var ValidTransitions = map[AuthorizationStatus][]AuthorizationStatus{
 	StatusUnderReview:     {StatusEnabled, StatusWithdrawn},
 	StatusEnabled:         {StatusSuspended, StatusExpired, StatusWithdrawn},
 	StatusSuspended:       {StatusResumed, StatusExpired},
-	StatusResumed:         {StatusSuspended, StatusExpired},
+	StatusResumed:         {StatusExpired},
 	StatusExpired:         {},
 	StatusWithdrawn:       {},
 }

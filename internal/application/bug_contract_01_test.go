@@ -1,0 +1,3 @@
+package application_test
+import ("context"; "path/filepath"; "testing"; "evidence/internal/application"; "evidence/internal/domain"; "evidence/internal/repository")
+func TestBug01ResumedCanSuspendAgain(t *testing.T){ctx:=context.Background(); repo,_:=repository.NewFileRepository(filepath.Join(t.TempDir(),"store")); _=repo.SaveRequest(ctx,domain.AuthorizationRequest{ID:"r",Status:domain.StatusResumed,Version:2}); if err:=application.NewAuthorizationService(repo).Suspend(ctx,"r","review",nil);err!=nil{t.Fatal(err)}; got,_:=repo.GetRequest(ctx,"r"); if got.Status!=domain.StatusSuspended||got.Version!=3{t.Fatalf("request: %#v",got)}}

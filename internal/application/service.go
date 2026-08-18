@@ -224,7 +224,7 @@ func (s *AuthorizationService) Suspend(ctx context.Context, requestID string, re
 	if err != nil {
 		return err
 	}
-	if req.Status != domain.StatusEnabled && req.Status != domain.StatusResumed {
+	if req.Status != domain.StatusEnabled {
 		return domain.ErrInvalidStateTransition
 	}
 	susp := domain.TemporarySuspension{
