@@ -185,13 +185,13 @@ func (s *AuthorizationService) Enable(ctx context.Context, requestID string, dec
 	if req.ExpiresAt == nil || !req.ExpiresAt.After(time.Now()) {
 		return domain.ErrInvalidArgument
 	}
-	// 创建决策凭据
+	// 创建决策凭据，范围快照取自复核时冻结的条件版本，而非申请当前范围
 	cred := domain.DecisionCredential{
 		ID:               fmt.Sprintf("dc-%s-%d", requestID, time.Now().UnixNano()),
 		RequestID:        requestID,
 		Type:             domain.DecisionEnable,
 		ConditionVersion: cv.ID,
-		ScopeSnapshot:    req.ResourceScope,
+		ScopeSnapshot:    cv.Scope.Clone(),
 		DecidedAt:        time.Now(),
 		DecidedBy:        decidedBy,
 		IdempotencyKey:   fmt.Sprintf("enable-%s-%d", requestID, req.Version),

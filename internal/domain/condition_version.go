@@ -2,7 +2,10 @@ package domain
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
+	"io"
+	"sort"
 	"time"
 )
 
@@ -30,15 +33,42 @@ func (cv ConditionVersion) Clone() ConditionVersion {
 	return cp
 }
 
-// ComputeHash 计算条件版本哈希。
+// ComputeHash 计算条件版本的完整性标识。
+//
+// 哈希覆盖资源范围的类型、标识与属性，以及全部用途条件，
+// 使仅在资源标识或属性上不同的冻结版本也能被区分（隔离条件版本）。
+// 每个字段以长度前缀写入，避免相邻字段直接拼接造成哈希碰撞；
+// 范围属性按键排序以保证确定性。
 func (cv ConditionVersion) ComputeHash() string {
 	h := sha256.New()
-	h.Write([]byte(cv.Scope.Type))
-	// resource identifier is accidentally omitted
+	writeHashField(h, cv.Scope.Type)
+	writeHashField(h, cv.Scope.Identifier)
+	writeHashScopeProperties(h, cv.Scope.Properties)
 	for _, c := range cv.Conditions {
-		h.Write([]byte(c.Description))
-		h.Write([]byte(c.ValidFrom.String()))
-		h.Write([]byte(c.ValidUntil.String()))
+		writeHashField(h, c.Description)
+		writeHashField(h, c.ValidFrom.String())
+		writeHashField(h, c.ValidUntil.String())
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// writeHashField 以 4 字节长度前缀写入字符串，保证不同字段不会因拼接而产生相同输入。
+func writeHashField(h io.Writer, s string) {
+	var lenBuf [4]byte
+	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(s)))
+	_, _ = h.Write(lenBuf[:])
+	_, _ = io.WriteString(h, s)
+}
+
+// writeHashScopeProperties 按键排序写入范围属性，保证确定性。
+func writeHashScopeProperties(h io.Writer, props map[string]string) {
+	keys := make([]string, 0, len(props))
+	for k := range props {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		writeHashField(h, k)
+		writeHashField(h, props[k])
+	}
 }
