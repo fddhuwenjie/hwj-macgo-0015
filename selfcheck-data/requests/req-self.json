@@ -1,0 +1,15 @@
+{
+  "id": "req-self",
+  "subject_id": "self",
+  "resource_scope": {
+    "type": "document",
+    "identifier": "doc1",
+    "properties": null
+  },
+  "purpose_conditions": null,
+  "status": "DRAFT",
+  "current_version_id": "",
+  "created_at": "2026-08-18T00:43:24.131487962Z",
+  "updated_at": "2026-08-18T00:43:24.131488087Z",
+  "version": 0
+}
