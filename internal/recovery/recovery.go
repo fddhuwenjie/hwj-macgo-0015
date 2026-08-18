@@ -18,8 +18,8 @@ func Recover(ctx context.Context, repoDir string, journalPath string) (*reposito
 	defer j.Close()
 	records, err := j.Replay()
 	if err != nil {
-		// A failed replay is considered unrecoverable, so discard the journal.
-		_ = os.Remove(journalPath)
+		// 撕裂尾部已由 Replay 自愈；此处只剩真正的 I/O 错误。
+		// 保留日志以便诊断与重试，不丢弃已完整落盘的前缀。
 		return nil, err
 	}
 	// 先建立仓库目录

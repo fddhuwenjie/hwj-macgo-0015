@@ -44,7 +44,11 @@ func (j *Journal) TruncateSafe(offset int64) error {
 	return j.file.Truncate(offset)
 }
 
-// Replay 重放日志，返回所有记录。
+// Replay 重放日志，返回所有完整落盘的记录。
+//
+// 若日志尾部存在因崩溃产生的"撕裂写"——长度头不完整，或负载未写完——
+// 仅截断这条不完整记录，保留此前已完整落盘的前缀；随后追加的记录可在
+// 截断点续写并再次重放。只有非撕裂的真正 I/O 错误才作为错误返回。
 func (j *Journal) Replay() ([][]byte, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -52,26 +56,47 @@ func (j *Journal) Replay() ([][]byte, error) {
 		return nil, err
 	}
 	var records [][]byte
+	// lastGood 为已完整读入的最后一条记录的结束位置，即下一条记录的起点。
+	lastGood := int64(0)
 	lenBuf := make([]byte, 4)
 	for {
+		// 读取 4 字节长度头。0 字节表示正常结束；不足 4 字节表示头部撕裂。
 		n, err := io.ReadFull(j.file, lenBuf)
 		if err == io.EOF || n == 0 {
 			break
 		}
+		if err == io.ErrUnexpectedEOF {
+			// 长度头不完整：丢弃该撕裂尾部，截断到上一条完整记录末尾。
+			return records, j.truncateTail(lastGood)
+		}
 		if err != nil {
-			// Treat any torn write as an unusable journal.
-			_ = j.file.Truncate(0)
 			return nil, err
 		}
+
 		length := binary.BigEndian.Uint32(lenBuf)
+		recStart := lastGood // 本条记录（含长度头）的起始偏移
 		data := make([]byte, length)
 		if _, err := io.ReadFull(j.file, data); err != nil {
-			_ = j.file.Truncate(0)
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				// 负载不完整：截断到本条记录起点，整条丢弃。
+				return records, j.truncateTail(recStart)
+			}
 			return nil, err
 		}
 		records = append(records, data)
+		lastGood = recStart + int64(4) + int64(length)
 	}
 	return records, nil
+}
+
+// truncateTail 把日志截断到最近一条完整记录的末尾并回拨读写位置，
+// 使后续 O_APPEND 追加与再次 Replay 都从该点开始。
+func (j *Journal) truncateTail(offset int64) error {
+	if err := j.file.Truncate(offset); err != nil {
+		return err
+	}
+	_, err := j.file.Seek(offset, io.SeekStart)
+	return err
 }
 
 // Close 关闭日志。
