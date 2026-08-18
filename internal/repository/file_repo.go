@@ -220,7 +220,6 @@ func (r *FileRepository) GetReviewRound(ctx context.Context, id string) (domain.
 func (r *FileRepository) SaveDecision(ctx context.Context, d domain.DecisionCredential) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	d.ID = fmt.Sprintf("%s-%d", d.ID, time.Now().UnixNano())
 	return r.writeJSON(ctx, "decisions", d.ID, d)
 }
 func (r *FileRepository) GetDecision(ctx context.Context, id string) (domain.DecisionCredential, error) {
