@@ -147,7 +147,7 @@ func (s *AuthorizationService) Enable(ctx context.Context, requestID string, dec
 	if err != nil {
 		return err
 	}
-	if req.Status != domain.StatusUnderReview {
+	if req.Status != domain.StatusUnderReview && req.Status != domain.StatusEnabled {
 		return domain.ErrInvalidStateTransition
 	}
 	// 获取当前条件版本
@@ -200,8 +200,10 @@ func (s *AuthorizationService) Enable(ctx context.Context, requestID string, dec
 		return err
 	}
 	// 更新状态
-	if err := req.Transition(domain.StatusEnabled); err != nil {
-		return err
+	if req.Status == domain.StatusUnderReview {
+		if err := req.Transition(domain.StatusEnabled); err != nil {
+			return err
+		}
 	}
 	req.Version++
 	if err := repo.SaveRequest(ctx, req); err != nil {
