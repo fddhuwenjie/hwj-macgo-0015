@@ -9,7 +9,8 @@ var ValidTransitions = map[AuthorizationStatus][]AuthorizationStatus{
 	StatusUnderReview:     {StatusEnabled, StatusWithdrawn},
 	StatusEnabled:         {StatusSuspended, StatusExpired, StatusWithdrawn},
 	StatusSuspended:       {StatusResumed, StatusExpired},
-	StatusResumed:         {StatusExpired},
+	// 已恢复的授权可再次进入新的暂停周期，也可自然到期。
+	StatusResumed:         {StatusSuspended, StatusExpired},
 	StatusExpired:         {},
 	StatusWithdrawn:       {},
 }

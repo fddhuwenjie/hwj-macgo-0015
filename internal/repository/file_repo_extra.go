@@ -29,6 +29,26 @@ func (r *FileRepository) CountRequests(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+// CountSuspensions 返回已落盘的暂停记录总数，用于校验是否留下部分更新。
+func (r *FileRepository) CountSuspensions(ctx context.Context) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entries, err := os.ReadDir(filepath.Join(r.rootDir, "suspensions"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	count := 0
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".json" {
+			count++
+		}
+	}
+	return count, nil
+}
+
 // CheckIntegrity 简单校验所有JSON文件可解析。
 func (r *FileRepository) CheckIntegrity(ctx context.Context) error {
 	r.mu.RLock()

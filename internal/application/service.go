@@ -224,7 +224,14 @@ func (s *AuthorizationService) Suspend(ctx context.Context, requestID string, re
 	if err != nil {
 		return err
 	}
-	if req.Status != domain.StatusEnabled {
+	// 仅允许已启用或已恢复的授权进入（新的）暂停周期；
+	// 草稿、条件冻结、复核中、已到期、已撤回均拒绝直接暂停。
+	if req.Status != domain.StatusEnabled && req.Status != domain.StatusResumed {
+		return domain.ErrInvalidStateTransition
+	}
+	// 在写入暂停记录之前先校验状态转移合法性，
+	// 确保即使状态机未来调整也不会留下"有暂停记录但状态未变更"的部分更新。
+	if !domain.CanTransition(req.Status, domain.StatusSuspended) {
 		return domain.ErrInvalidStateTransition
 	}
 	susp := domain.TemporarySuspension{
