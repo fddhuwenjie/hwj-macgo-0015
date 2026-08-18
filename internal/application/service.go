@@ -147,7 +147,10 @@ func (s *AuthorizationService) Enable(ctx context.Context, requestID string, dec
 	if err != nil {
 		return err
 	}
-	if req.Status != domain.StatusUnderReview && req.Status != domain.StatusEnabled {
+	// 状态保护：只有待启用(UnderReview)的申请可被启用。
+	// 已启用(Enabled)的申请再次启用属于重复决策，直接拒绝——不推进版本、不生成第二份凭据，
+	// 保证已启用申请与既有凭据保持不变，且不留下任何部分更新。
+	if req.Status != domain.StatusUnderReview {
 		return domain.ErrInvalidStateTransition
 	}
 	// 获取当前条件版本
@@ -199,11 +202,9 @@ func (s *AuthorizationService) Enable(ctx context.Context, requestID string, dec
 	if err := repo.SaveDecision(ctx, cred); err != nil {
 		return err
 	}
-	// 更新状态
-	if req.Status == domain.StatusUnderReview {
-		if err := req.Transition(domain.StatusEnabled); err != nil {
-			return err
-		}
+	// 更新状态：此时状态必为 UnderReview（重复启用已在入口拒绝），执行确定性状态转移。
+	if err := req.Transition(domain.StatusEnabled); err != nil {
+		return err
 	}
 	req.Version++
 	if err := repo.SaveRequest(ctx, req); err != nil {
