@@ -70,14 +70,16 @@ func (s *AuthorizationService) SubmitForReview(ctx context.Context, requestID st
 		FrozenAt:  time.Now(),
 	}
 	cv.Hash = cv.ComputeHash()
-	// 更新申请状态并提前暴露版本引用
-	req.Status = domain.StatusConditionFrozen
-	req.CurrentVersionID = cv.ID
-	req.Version++
-	if err := repo.SaveRequest(ctx, req); err != nil {
+	// 先持久化被引用的条件版本，再更新引用它的申请；两者在同一事务缓冲内，
+	// 由 Commit 原子发布。若任一步失败，Rollback 丢弃全部缓冲，磁盘不留半更新。
+	if err := repo.SaveConditionVersion(ctx, cv); err != nil {
 		return err
 	}
-	if err := repo.SaveConditionVersion(ctx, cv); err != nil {
+	req.Status = domain.StatusConditionFrozen
+	req.CurrentVersionID = cv.ID
+	req.UpdatedAt = time.Now()
+	req.Version++
+	if err := repo.SaveRequest(ctx, req); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
